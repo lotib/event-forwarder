@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"log"
@@ -44,6 +46,7 @@ func main() {
 	for {
 		// Read a msg at a time
 		buf := make([]byte, 24)
+		data := make([]byte, 24)
 		n, addr, err := s.ReadFrom(buf)
 		if err != nil {
 			continue
@@ -58,14 +61,38 @@ func main() {
 			fmt.Printf("Received from %s %v (%d)\n", addr, buf, n)
 		}
 
-		event := (*(*evdev.InputEvent)(unsafe.Pointer(&buf[0])))
+		event := (*(*uinput.InputEvent)(unsafe.Pointer(&buf[0])))
 
 		if *flagDebug {
-			fmt.Printf("%s \n", event.String())
+			fmt.Printf("%v \n", event)
+			// fmt.Printf("%s \n", event.String())
+
+			buf := bytes.NewBuffer(make([]byte, 0, 24))
+			err := binary.Write(buf, binary.LittleEndian, event)
+			if err != nil {
+				fmt.Println("Error serializing struct:", err)
+				os.Exit(1)
+			}
+			data = buf.Bytes()
+			fmt.Printf("BUFF %v\n", *buf)
+			fmt.Printf("DATA %v\n", data)
 		}
 
-		if err = keyboard.SendBufferEvent(buf); err != nil {
+		if err = keyboard.SendBufferEvent(data); err != nil {
 			fmt.Printf("Error sending buffer event to virtual device %v \n", err)
+		}
+
+		event.Time.Sec = 0
+		event.Time.Usec = 0
+		if err = keyboard.SendEvent(&event); err != nil {
+			fmt.Printf("Error sending event to virtual device %v \n", err)
+		}
+
+		if event.Type == evdev.EV_KEY {
+			if event.Code == evdev.KEY_A {
+				keyboard.KeyPress(evdev.KEY_A)
+				fmt.Printf("sending A \n")
+			}
 		}
 
 	}

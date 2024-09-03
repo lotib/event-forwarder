@@ -15,6 +15,11 @@ import (
 	evdev "github.com/gvalkov/golang-evdev"
 )
 
+const (
+	btnStateReleased = 0
+	btnStatePressed  = 1
+)
+
 var (
 	flagListDevices = flag.Bool("list", false, "list input devices that can be attached")
 
@@ -100,26 +105,55 @@ func main() {
 			}
 
 			if conn != nil {
+				forward := true
+				debugString := ""
 
-				// buf := new(bytes.Buffer)
-				buf := bytes.NewBuffer(make([]byte, 0, 24))
+				if event.Type == evdev.EV_SYN {
+					debugString += "Syn Report"
+				} else if event.Type == evdev.EV_MSC {
 
-				err := binary.Write(buf, binary.LittleEndian, event)
+					debugString += "MSC"
+					if event.Code == evdev.MSC_SCAN {
+						debugString += " MSC_SCAN"
+					} else {
+						debugString += " ???"
+					}
+					forward = false
 
-				if err != nil {
-					fmt.Println("Error serializing struct:", err)
-					os.Exit(1)
+				} else if event.Type == evdev.EV_KEY {
+
+					debugString += evdev.KEY[int(event.Code)]
+					if event.Value == btnStateReleased {
+						debugString += " released"
+					} else if event.Value == btnStatePressed {
+						debugString += " pressed"
+					}
 				}
-				data := buf.Bytes()
-				_, err = conn.Write(data)
-				if err != nil {
-					fmt.Println("Error sending message:", err)
-					os.Exit(1)
+
+				if forward {
+					buf := bytes.NewBuffer(make([]byte, 0, 24))
+					err := binary.Write(buf, binary.LittleEndian, event)
+					if err != nil {
+						fmt.Println("Error serializing struct:", err)
+						os.Exit(1)
+					}
+					data := buf.Bytes()
+					_, err = conn.Write(data)
+					if err != nil {
+						fmt.Println("Error sending message:", err)
+						os.Exit(1)
+					}
+
+					if *flagDebug {
+						fmt.Printf("BUFF %v\n", *buf)
+						fmt.Printf("DATA %v\n", data)
+					}
 				}
 
 				if *flagDebug {
-					fmt.Println(*buf)
+					fmt.Printf("%s\n", debugString)
 				}
+
 			}
 		}
 		sig := make(chan os.Signal, 1)
