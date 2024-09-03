@@ -25,6 +25,8 @@ var (
 	flagAddr         = flag.String("addr", "127.0.0.1", "destination address / host")
 	flagPort         = flag.Int("port", 36666, "destination UDP port")
 
+	flagDebug = flag.Bool("debug", false, "add verbosity")
+
 	conn *net.UDPConn = nil
 )
 
@@ -92,7 +94,10 @@ func main() {
 				fmt.Printf("Failed to read input event %v", err)
 				os.Exit(1)
 			}
-			fmt.Println(event)
+
+			if *flagDebug {
+				fmt.Println(event)
+			}
 
 			if conn != nil {
 
@@ -112,8 +117,9 @@ func main() {
 					os.Exit(1)
 				}
 
-				fmt.Println(buf.Len())
-				fmt.Println(*buf)
+				if *flagDebug {
+					fmt.Println(*buf)
+				}
 			}
 		}
 		sig := make(chan os.Signal, 1)

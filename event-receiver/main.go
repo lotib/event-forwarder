@@ -18,6 +18,7 @@ var (
 	flagVirtualDevice = flag.String("virtual-device", "testkeyboard", "virtual device injects received event")
 	flagPort          = flag.Int("port", 36666, "UDP port")
 	flagAddr          = flag.String("addr", "", "address to listen")
+	flagDebug         = flag.Bool("debug", false, "add verbosity")
 )
 
 func main() {
@@ -48,26 +49,24 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("Received from %s %v (%d)", addr, buf, n)
+		if n != 24 {
+			fmt.Printf("Error reading buffer not enough data: %d \n", n)
+			continue
+		}
 
-		//var toto *event.InputEvent
+		if *flagDebug {
+			fmt.Printf("Received from %s %v (%d)\n", addr, buf, n)
+		}
 
 		event := (*(*evdev.InputEvent)(unsafe.Pointer(&buf[0])))
 
-		println("Where am I")
+		if *flagDebug {
+			fmt.Printf("%s \n", event.String())
+		}
 
-		fmt.Printf("%d %d %d \n", event.Code, event.Type, event.Value)
-		fmt.Printf("sqdsqdqsds  %d %d %d \n", event.Code, event.Type, event.Value)
-
-		fmt.Printf("%v \n", event)
-		fmt.Printf("%s \n", event.String())
-
-		println("Where am I")
-
-		keyboard.SendBufferEvent(buf)
-
-		// if n != 24 {
-		// }
+		if err = keyboard.SendBufferEvent(buf); err != nil {
+			fmt.Printf("Error sending buffer event to virtual device %v \n", err)
+		}
 
 	}
 
